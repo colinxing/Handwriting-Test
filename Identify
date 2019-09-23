@@ -1,0 +1,81 @@
+import numpy as np
+from sklearn.linear_model import LinearRegression
+ 
+def load_data(filename): 
+    tmp_data_x = []
+    tmp_data_y = []
+    with open(filename, "r") as file:
+        for line in file:
+            lst = [float(item) for item in line.split(",")]
+            tmp_data_x.append(lst[:-1])
+            tmp_data_y.append(lst[-1])
+ 
+    return np.array(tmp_data_x), np.array(tmp_data_y)
+ 
+def load_source(filename):
+    with open(filename, "r") as file:
+        lines = file.readlines()
+        return lines[1:]
+ 
+def show_source(data):
+    lst = data.split(",")
+    print("num: {}".format(lst[0]))
+    lst = lst[1:]
+    for i in range(28):
+        print(",".join(["%3s" % item for item in lst[i*28: i*28+28]]))
+ 
+#加载训练数据
+data_x, data_y = load_data("train.txt")
+ 
+# 加载原始数据
+source_data = load_source("train.csv")
+ 
+# 打印数据长度
+print("len", len(data_x), len(data_y))
+ 
+# 设置测试数据数量
+LEN = -100
+# 划分训练数据和测试数据 注： 当前测试中用到测试数据训练集（train.csv）的数据， 而暂时没有用到测试数据集的数据(test.csv)
+x_train, y_train = data_x[:LEN], data_y[:LEN]
+x_test, y_test = data_x[LEN:], data_y[LEN:]
+ 
+# 定义45个线性分类器，并训练数据，每个分类器只对两个数字进行识别
+RegressionDict = {}
+for i in range(10):
+    for j in range(i+1, 10):
+        regr = LinearRegression()
+        RegressionDict["{}-{}".format(i, j)] = regr
+        x_train_tmp = np.array([x_train[index] for index,  y in enumerate(y_train) if y in [i, j]])
+        y_train_tmp = np.array([0 if y == i else 1 for y in y_train if y in [i, j]])
+        regr.fit(x_train_tmp, y_train_tmp)
+ 
+# 初始化计数器
+ret_counter = []
+for i in range(len(x_test)):
+    ret_counter.append({})
+# 预测数据，并把结果放到计数器中
+tmp_dict = {}
+for key, regression in RegressionDict.items():
+    a, b = key.split('-')
+    y_test_predict = regression.predict(x_test)
+    tmp_dict[key] = [a if item <= 0.5 else b for item in y_test_predict]
+    for i, item in enumerate(tmp_dict[key]):
+        ret_counter[i][item] = ret_counter[i].get(item, 0) + 1
+ 
+ 
+# 统计预测数据， 计算测试准确率
+ok_count = 0
+err_count = 0
+for i, item in enumerate(y_test):
+    ret = int(sorted(ret_counter[i].items(), key=lambda x:x[1],reverse=True)[0][0])
+    if ret == int(item):
+        ok_count += 1
+    else:
+        # 打印出错的数据
+        print("\n")
+        show_source(source_data[i-100])
+        print(x_test[i])
+        print(sorted(ret_counter[i].items(), key=lambda x:x[1],reverse=True), int(item))
+        err_count += 1
+ 
+print(" %d ok: %.2f%% err: %.2f%%" % (ok_count+err_count, 100.0* ok_count/(ok_count+err_count), 100.0* err_count/(ok_count+err_count)))
